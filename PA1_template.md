@@ -1,12 +1,5 @@
----
-title: "Activity Monitoring Analysis"
-date: "May 11, 2019"
-output: html_document
----
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
+# Activity Monitoring Analysis
+### May 11, 2019
 
 ## The Project
 
