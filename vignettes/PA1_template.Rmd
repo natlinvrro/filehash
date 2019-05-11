@@ -1,0 +1,149 @@
+---
+title: "Activity Monitoring Analysis"
+date: "May 11, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## The Project
+
+The project assignment aims to make use of data from personal activity monitoring devices and make observations regarding the activity.
+
+## Methodology
+
+This section discusses how the project was created.
+
+Initially, the working directory was first set, and the dataset downloaded.
+```{r}
+setwd("C:/Users/10012224/Documents/Coursera/5 - Reproducible Research/Week 2/Assignment/filehash")
+```
+
+```{r}
+if(!file.exists("./data")){dir.create("./data")}
+dataurl <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
+download.file(dataurl, destfile="./data/repdata_data_activity.zip", method="curl")
+unzip("./data/repdata_data_activity.zip")
+```
+
+The data was read and stored into the variable, walkdata.
+```{r}
+walkdata <- read.csv("activity.csv")
+```
+
+The required libraries were initialized. 
+```{r}
+library(dplyr)
+library(ggplot2)
+```
+
+To determine the number of steps taken per day, walkdata was aggregated with reference to the date. The sum function was applied for aggregation, and column names were set for easier identification.
+```{r}
+aggwalkdata <- aggregate(walkdata$steps, list(walkdata$date), sum, na.rm=TRUE)
+colnames(aggwalkdata) <- c("date", "steps")
+```
+
+A data frame, vdim, was created to identify the mean and median of the data. The dataframe had three columns-- Value, Desc (Median or Mean), and the Color. This dataframe is to be used for plotting the values.
+```{r}
+vdim <- data.frame(c(mean(aggwalkdata$steps, na.rm=TRUE),median(aggwalkdata$steps, na.rm=TRUE)), c("Mean", "Median"), c("red", "blue"))
+colnames(vdim)=c("Value", "Desc", "Color")
+```
+
+Using ggplot2, a histogram was plotted to show the frequency of the number of steps taken per day with the exclusion of NA values. As seen, the most frequent count of steps is in the 10000 to 11000 range while the mean is at the 9000 to 10000 range.
+```{r}
+g1 <- ggplot(aggwalkdata, aes(x=steps)) + geom_histogram(binwidth = 800, color="black", fill="green") +
+        geom_vline(data = vdim, aes(xintercept=Value), color=vdim$Color, linetype="dashed", size=1) +
+        geom_text(data = vdim, mapping=aes(x = Value, y=9, label=Desc), size=3, angle=90, vjust=-0.4, hjust=0) + ggtitle("Number of Steps Taken per Day")
+
+print(g1)   
+```
+
+Looking at the data at a different angle, walkdata was aggregated with reference to the intervals. The mean function was applied. 
+```{r}
+aggwalkdataint <- aggregate(walkdata$steps, list(walkdata$interval), mean, na.rm=TRUE)
+colnames(aggwalkdataint) <- c("interval", "avesteps")
+```
+
+A time series graph was created, plotting interval against avesteps. It could be seen that up until interval 500, a minimal number of steps were recorded. The count increased and reached its peak near interval 850. From then, the count continuously rose and fell. Eventually, the count came back to its minimum at interval 2300.
+```{r}
+g2 <- ggplot(data = aggwalkdataint, mapping = aes(x = interval, y = avesteps)) + 
+        geom_line(color="red") + scale_x_continuous("Interval (Day)", 
+                                         breaks = seq(min(aggwalkdataint$interval), max(aggwalkdataint$interval), 100)) +
+        scale_y_continuous("Average Number of Steps") + ggtitle("Average Number of Steps Taken by Interval")
+print(g2)
+```
+
+The former analyses were done without the consideration of the NA values. Thus, the number of NA values were checked first. The following code counts the NA values:
+```{r}
+colSums(is.na(walkdata))
+```
+
+There are a number of NA values in the dataset. To add a value to the fields, the mean of the original steps data ignoring the NA values were obtained.
+```{r}
+mean(walkdata$steps, na.rm=TRUE)
+```
+
+A second walkdata dataset was created and stored to the variable, walkdatarep. The formerly obtained mean was used to replace all NA values in the dataframe. A final check for NA values was done to ensure all were covered.
+```{r}
+walkdatarep <- read.csv("activity.csv")
+walkdatarep$steps[is.na(walkdatarep$steps)] <- mean(walkdata$steps, na.rm=TRUE)
+colSums(is.na(walkdatarep))
+```
+
+To compare if anything has changed in the number of steps taken per day, the new dataset was aggregated with reference to the date. The sum function was applied, and column names were set for the ease of identification.
+```{r}
+aggwalkdata2 <- aggregate(walkdatarep$steps, list(walkdatarep$date), sum)
+colnames(aggwalkdata2) <- c("date", "steps")
+```
+
+A new mean-median table was created for later use in plotting.
+```{r}
+vdim2 <- data.frame(c(floor(mean(aggwalkdata2$steps)),median(aggwalkdata2$steps)), c("                 Mean", "Median"), c("red", "blue"))
+colnames(vdim2)=c("Value", "Desc", "Color")
+```
+
+A new histogram was created. It could be seen that the median and mean are now of the same value. The 10000 to 11000 range has increased. In conjunction to this, the previously zero-value counts are now decreased. 
+```{r}
+g3 <- ggplot(aggwalkdata2, aes(x=steps)) + geom_histogram(binwidth = 800, color="black", fill="green") +
+        geom_vline(data = vdim2, aes(xintercept=Value), color=vdim2$Color, linetype="dashed", size=1) +
+        geom_text(data = vdim2, mapping=aes(x = Value, y=9, label=Desc), size=3, angle=90, vjust=-0.4, hjust=0) +
+        ggtitle("Number of Steps Taken per Day with NA Values Imputed")
+
+print(g3)  
+```
+
+The observations of the new dataframe were then determined if it was a weekend or a weekday. The dataset was then aggregated with reference to the day and the interval. The mean function was applied.
+```{r}
+#Difference in Weekdays and Weekends
+walkdatarep$day <- weekdays(as.Date(walkdatarep$date))
+walkdatarep$day[(walkdatarep$day=="Saturday"|walkdatarep$day=="Sunday")] <- "weekend"
+walkdatarep$day[(walkdatarep$day!="weekend")] <- "weekday"
+
+aggwalkdata3 <- aggregate(data= walkdatarep, steps~day+interval, mean)
+```
+
+The data were plotted into a facet. The facet is divided into two. One part measures activity on weekdays and the other measures the activity on weekends. It could be seen that the weekday activity only peaks at a certain time and is generally does not reach 100 steps. Meanwhile, weekend activity shows a more uniform number of steps taken. There is no peak, but values generally exceed 100. Also, weekend activity is much later than weekday activity as the former starts to rise at interval 600 and the latter at interval 500.
+```{r}
+g4 <- ggplot(data = aggwalkdata3, mapping = aes(x = interval, y = steps)) +         geom_line(color="red") +        
+        facet_wrap(~day, nrow=2, ncol=1) + ggtitle("Weekday VS Weekend Activity")
+print(g4)
+```
+
+
+
+
+
+
+   
+
+
+
+
+
+
+
+
+
+
